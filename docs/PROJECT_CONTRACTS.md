@@ -1,0 +1,317 @@
+# Harmony Project Contracts
+
+This document exists to keep the project from drifting into spaghetti. When in doubt, follow these contracts before adding new concepts.
+
+## Core Vocabulary
+
+Use these names consistently.
+
+### Harmony
+
+The control plane. Harmony owns authority, routing, policy, approvals, and audit.
+
+Harmony is not the Company Brain itself. Harmony lets the Company Brain operate safely.
+
+### Company Brain
+
+The product capability built on top of Harmony. It understands a business through documents, communications, sources, entities, and workflows.
+
+### Harness
+
+The execution substrate. A harness starts sessions, runs agent work, receives messages, and reports outputs. `pi-mono` should be wrapped as a harness adapter.
+
+### Agent
+
+A configured role with a model, prompt, permissions, allowed tools, and allowed communication targets.
+
+### Tool
+
+A controlled capability exposed through Harmony. Examples: filesystem read, shell command, git diff, source scan, document parse, connector sync.
+
+### Source
+
+A business data origin. Examples: local filesystem, Google Drive, email, QuickBooks, Slack, Teams, CRM.
+
+### SourceRoot / SourceScope
+
+The approved subset of a source that Harmony may inspect. For local files this may be a directory root. For SaaS connectors this may be a folder, label, mailbox, channel, or API scope.
+
+### Document
+
+A discovered or ingested business file-like object. A document must always belong to a business and source.
+
+### Communication
+
+A message-like business object, such as email, chat, SMS, or call transcript.
+
+### Provenance
+
+The source trail for a fact, chunk, summary, or answer.
+
+### Event
+
+An auditable record of something Harmony observed, allowed, denied, executed, or delivered.
+
+## Naming Rules
+
+Use these terms in code, docs, and Mandrel.
+
+- `Business`, not tenant, account, org, or workspace unless specifically discussing SaaS packaging.
+- `Source`, not connector instance, integration, provider, or drive.
+- `SourceRoot` for local filesystem roots.
+- `SourceScope` for non-filesystem scopes.
+- `Document` for file-like objects.
+- `Communication` for message-like objects.
+- `AgentDefinition` for configured agent metadata.
+- `AgentSession` for a running harness session.
+- `AgentAction` for requested intent from an agent.
+- `ToolCall` or tool action for a requested tool use.
+- `PolicyDecision` for allow/deny/approval-required results.
+- `RuntimeHarness` for the interface Harmony uses.
+- `PiMonoHarness` for the pi-mono adapter.
+
+IDs should be explicit:
+
+- `businessId`
+- `agentId`
+- `sessionId`
+- `taskId`
+- `sourceId`
+- `sourceRootId`
+- `sourceScopeId`
+- `documentId`
+- `communicationId`
+- `eventId`
+- `approvalId`
+
+Avoid vague IDs like `id` in cross-boundary payloads unless the type is already obvious.
+
+## Boundary Rules
+
+### Agents Do Not Own Power
+
+Agents may produce intent. They may not directly execute privileged work.
+
+Allowed:
+
+```text
+agent -> Harmony -> policy check -> broker -> tool/harness
+```
+
+Not allowed:
+
+```text
+agent -> shell
+agent -> filesystem
+agent -> connector credential
+agent -> another agent directly
+```
+
+### Harnesses Do Not Own Policy
+
+Harnesses execute. They should not decide business permissions.
+
+If a harness can call tools, Harmony must still broker or restrict those tools.
+
+### Tools Do One Thing
+
+Each tool should have a narrow contract.
+
+Good:
+
+- `filesystem.readFile`
+- `filesystem.listDirectory`
+- `git.diff`
+- `discovery.scanRoot`
+
+Too broad:
+
+- `filesystem.manage`
+- `business.doEverything`
+- `agent.runAnything`
+
+### Messages Are Capabilities
+
+Agent-to-agent communication is a permissioned action. It must go through `MessageBroker`.
+
+### Events Are Truth
+
+Every allowed, denied, executed, failed, or approval-required action should produce an event.
+
+## Data Contracts
+
+Every business data object should eventually include:
+
+```text
+businessId
+sourceId
+createdAt
+updatedAt
+provenance
+```
+
+Every discovered document should include:
+
+```text
+documentId
+businessId
+sourceId
+sourceRootId or sourceScopeId
+path or externalRef
+name
+mimeType or extension
+sizeBytes
+discoveredAt
+discoveryStatus
+approvalStatus
+provenance
+```
+
+Every extracted fact/chunk/summary should include:
+
+```text
+businessId
+sourceId
+documentId or communicationId
+extractedByAgentId
+extractedAt
+confidence
+provenance
+```
+
+No answer should be treated as trustworthy unless it can cite provenance.
+
+## Policy Decision Contract
+
+Policy should eventually return one of:
+
+```text
+allowed
+denied
+approval_required
+```
+
+Each decision should include:
+
+```text
+decision
+reason
+agentId
+action
+resource
+businessId when applicable
+policyRuleId when available
+```
+
+Do not collapse approval-required into denied. They mean different things.
+
+## Approval Contract
+
+Approvals are first-class records.
+
+Approval states:
+
+- `pending`
+- `approved`
+- `denied`
+- `deferred`
+- `expired`
+
+Approval targets may include:
+
+- source
+- source root
+- source scope
+- discovered document
+- folder
+- tool action
+- agent action
+- deep indexing job
+
+## Connector Contract
+
+Every connector/source must support discovery before ingestion.
+
+Minimum connector lifecycle:
+
+```text
+configured
+connected
+discovered
+reviewed
+approved
+ingested
+paused
+revoked
+deleted
+```
+
+Early connectors should be read-only. Write-back is a later capability.
+
+## Runtime Harness Contract
+
+Harmony talks to harnesses through `RuntimeHarness`.
+
+The runtime harness should be responsible for:
+
+- starting agent sessions
+- sending tasks/messages to an agent runtime
+- returning structured output or raw output for parsing
+- reporting errors, timeouts, and lifecycle state
+
+The runtime harness should not be responsible for:
+
+- deciding permissions
+- deciding business data access
+- bypassing tool brokers
+- storing final business knowledge
+
+## Source Of Truth Order
+
+When deciding what to build, follow this order:
+
+1. `docs/ROADMAP.md`
+2. `docs/PROJECT_CONTRACTS.md`
+3. `ARCHITECTURE.md`
+4. current Mandrel context for project `harmony`
+5. source code
+
+If source code disagrees with the contracts, either update the code or explicitly update the contract.
+
+## Mandrel Usage
+
+Store durable project state in Mandrel under project `harmony`.
+
+Use Markdown for:
+
+- handoffs
+- milestone completions
+- architecture decisions
+- bug lessons
+- scope changes
+
+Use tags consistently:
+
+- `harmony`
+- `roadmap`
+- `architecture`
+- `decision`
+- `handoff`
+- `pi-mono`
+- `control-plane`
+- `company-brain`
+- `mock-business`
+
+## Change Discipline
+
+Before adding a new module, ask:
+
+1. Which plane is this: control, runtime, or data?
+2. Which milestone owns this?
+3. What is the typed contract?
+4. What authority does it need?
+5. What event should it emit?
+6. What provenance should it preserve?
+
+If the answer is unclear, write the contract before writing code.
+
