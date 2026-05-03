@@ -45,6 +45,27 @@ export const agents: AgentDefinition[] = [
     }
   },
   {
+    id: "file-discovery-agent",
+    name: "File Discovery Agent",
+    role: "Scans approved local source roots and reports discovered file metadata.",
+    systemPrompt: [
+      "You discover files only by requesting scoped discovery tools through Harmony.",
+      AGENT_PROTOCOL_INSTRUCTIONS
+    ].join(" "),
+    model: {
+      provider: "local-stub",
+      model: "file-discovery-stub"
+    },
+    allowedTools: ["discovery.scanRoot"],
+    canTalkTo: ["planner", "reviewer"],
+    permissions: {
+      canReadFiles: true,
+      canWriteFiles: false,
+      canRunCommands: false,
+      requiresApprovalFor: ["filesystem.write", "shell.exec"]
+    }
+  },
+  {
     id: "reviewer",
     name: "Reviewer",
     role: "Reviews plans and outputs for risk.",

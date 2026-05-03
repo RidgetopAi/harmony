@@ -4,13 +4,18 @@ import type { Task } from "../runtime/runtime-harness.js";
 export class TaskRouter {
   constructor(private readonly agents: AgentDefinition[]) {}
 
-  route(_task: Task): AgentDefinition {
-    const planner = this.agents.find((agent) => agent.id === "planner");
+  route(task: Task): AgentDefinition {
+    const agentId = isDiscoveryTask(task) ? "file-discovery-agent" : "planner";
+    const selectedAgent = this.agents.find((agent) => agent.id === agentId);
 
-    if (!planner) {
-      throw new Error("No planner agent is configured.");
+    if (!selectedAgent) {
+      throw new Error(`No ${agentId} agent is configured.`);
     }
 
-    return planner;
+    return selectedAgent;
   }
+}
+
+function isDiscoveryTask(task: Task): boolean {
+  return /\b(discover|discovery|scan)\b/i.test(task.content);
 }

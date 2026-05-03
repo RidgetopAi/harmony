@@ -343,7 +343,7 @@ Done when:
 
 ## Milestone 6: Business And Source Model
 
-Status: in progress.
+Status: complete.
 
 Goal:
 
@@ -386,6 +386,8 @@ Done when:
 
 ## Milestone 7: File Discovery Agent Integration
 
+Status: in progress.
+
 Goal:
 
 Bring the mock-business discovery work into Harmony as the first realistic controlled agent scenario.
@@ -399,6 +401,16 @@ Tasks:
 - run discovery through Harmony's tool/policy/event path
 - log scan summaries and errors
 - preserve discovery-first, approval-second flow
+
+Progress notes:
+
+- local `/home/ridgetop/projects/mock-local-business-corpus` path is absent; source fixture is on desktop and can be pulled over Tailscale when needed
+- added `file-discovery-agent` as a controlled read-only discovery agent
+- added brokered `discovery.scanRoot` tool backed by filesystem scanning
+- mapped `discovery.scanRoot` to the `filesystem.read` policy capability so approved root scopes apply before execution
+- scan output returns `Document` records with M6 provenance and pending approval status
+- scan output includes summary counts and per-entry errors so one broken or unreadable entry does not fail the whole scan
+- added contract tests for discovery task routing, approved-root scanning, out-of-scope denial, event identity, metadata, provenance, and broken-entry resilience
 
 Done when:
 

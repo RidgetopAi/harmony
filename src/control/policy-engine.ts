@@ -245,6 +245,10 @@ export class PolicyEngine {
 }
 
 export function getCapabilityNamespace(toolName: string): CapabilityNamespace {
+  if (toolName === "discovery.scanRoot") {
+    return "filesystem.read";
+  }
+
   const knownNamespace = CAPABILITY_NAMESPACES.find((namespace) =>
     matchesKnownNamespace(toolName, namespace)
   );

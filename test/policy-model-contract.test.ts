@@ -13,6 +13,7 @@ import { ToolRegistry } from "../src/tools/tool-registry.js";
 test("policy derives capability namespaces from tool names", () => {
   assert.equal(getCapabilityNamespace("filesystem.readFile"), "filesystem.read");
   assert.equal(getCapabilityNamespace("filesystem.writeFile"), "filesystem.write");
+  assert.equal(getCapabilityNamespace("discovery.scanRoot"), "filesystem.read");
   assert.equal(getCapabilityNamespace("shell.exec"), "shell.exec");
   assert.equal(getCapabilityNamespace("git.diff"), "git.diff");
   assert.equal(getCapabilityNamespace("task.plan.create"), "task.plan");
@@ -23,6 +24,7 @@ test("policy derives tool risk levels from capability namespaces", () => {
   assert.equal(getToolRiskLevel("shell.exec"), "critical");
   assert.equal(getToolRiskLevel("filesystem.writeFile"), "high");
   assert.equal(getToolRiskLevel("filesystem.readFile"), "medium");
+  assert.equal(getToolRiskLevel("discovery.scanRoot"), "medium");
   assert.equal(getToolRiskLevel("git.diff"), "low");
   assert.equal(getToolRiskLevel("workspace.note"), "low");
 });

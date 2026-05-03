@@ -423,6 +423,45 @@ deleted
 
 Early connectors should be read-only. Write-back is a later capability.
 
+## File Discovery Contract
+
+Milestone 7 introduces the first controlled discovery tool:
+
+```text
+discovery.scanRoot
+```
+
+`discovery.scanRoot` is a filesystem read capability. Policy treats it as `filesystem.read`, so it must include `path` in tool input, the requesting agent must have read permission, and the path must be inside an approved `filesystem.path` resource scope.
+
+The configured discovery agent is:
+
+```text
+file-discovery-agent
+```
+
+It may request `discovery.scanRoot`; it may not write files or run shell commands.
+
+Discovery output must stay discovery-first and approval-second. A scan may report file metadata and provenance, but it must not parse, summarize, index, answer from, or deeply ingest file contents.
+
+Every discovered file becomes a `Document` with:
+
+```text
+businessId
+sourceId
+sourceRootId
+path
+externalRef
+name
+mimeType or extension when known
+sizeBytes
+discoveredAt
+discoveryStatus: discovered
+approvalStatus: pending
+provenance
+```
+
+One unreadable or broken entry must not fail the whole scan. The tool should return discovered documents plus per-entry errors and scan summary counts. Root-level policy denial still fails closed before the tool handler runs.
+
 ## Runtime Harness Contract
 
 Harmony talks to harnesses through `RuntimeHarness`.

@@ -1,3 +1,4 @@
+import { discoveryScanRootTool } from "../discovery/file-discovery.js";
 import { ToolRegistry } from "../tools/tool-registry.js";
 
 export function createToolRegistry(): ToolRegistry {
@@ -26,6 +27,8 @@ export function createToolRegistry(): ToolRegistry {
       input
     }
   }));
+
+  registry.register("discovery.scanRoot", discoveryScanRootTool);
 
   registry.register("shell.exec", (input) => ({
     ok: true,
