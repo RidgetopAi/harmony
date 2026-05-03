@@ -259,7 +259,7 @@ Progress notes:
 
 ## Milestone 4: Policy Model
 
-Status: next.
+Status: complete.
 
 Goal:
 
@@ -284,7 +284,31 @@ Done when:
 - denials are explainable
 - approval-required actions are distinct from denied actions
 
+Progress notes:
+
+- added a typed `PolicyDecision` contract with `decision`, `allowed`, `reason`, `agentId`, `action`, `resource`, and `policyRuleId`
+- added explicit capability namespace derivation for known capabilities including `filesystem.read`, `filesystem.write`, `shell.exec`, and `git.diff`
+- allowed agents to receive exact tool grants or broader capability namespace grants while preserving permission gates
+- expanded tool and message policy events with decision metadata for explainable audit records
+- added policy model contract tests for namespace derivation, exact grants, namespace grants, allowlist denials, permission-gate denials, and broker denial event metadata
+- added `approval_required` tool policy decisions using `AgentPermissions.requiresApprovalFor`
+- added `tool.approval_required` events and broker behavior that does not execute handlers while approval is pending
+- added tests proving approval-required actions are distinct from denied actions and that denials take precedence when allowlist or permission gates fail
+- added `AgentResourceScope` with filesystem path scopes and read/write/read_write access
+- required filesystem tool inputs to include a scoped path before approval or execution
+- normalized filesystem paths before scope checks to prevent traversal outside approved roots
+- added tests for missing path denials, out-of-scope path denials, normalized in-scope paths, and traversal attempts
+- added tool risk levels as policy metadata: low, medium, high, and critical
+- mapped shell execution to critical risk, filesystem writes to high risk, filesystem reads to medium risk, and git diff/default tools to low risk
+- included risk levels in policy actions/resources and audit event metadata
+- added `BusinessPolicyOverride` records keyed by `businessId` and `agentId`
+- supported per-business allowed tools, denied tools, approval requirements, and resource scopes
+- made business override denials take precedence over base agent grants
+- added tests for business-scoped grants, explicit business denials, business approval requirements, and business-owned resource scopes
+
 ## Milestone 5: Durable Event Log
+
+Status: next.
 
 Goal:
 

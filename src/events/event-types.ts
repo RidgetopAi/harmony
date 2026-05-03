@@ -7,6 +7,7 @@ export type HarmonyEventType =
   | "agent.run_failed"
   | "tool.allowed"
   | "tool.denied"
+  | "tool.approval_required"
   | "tool.completed"
   | "message.allowed"
   | "message.denied"

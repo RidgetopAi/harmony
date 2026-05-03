@@ -11,13 +11,40 @@ export class ToolBroker {
   ) {}
 
   async execute(agent: AgentDefinition, toolName: string, input: unknown): Promise<ToolResult> {
-    const decision = this.policy.canUseTool(agent, toolName);
+    const decision = this.policy.canUseTool(agent, toolName, { input });
+
+    if (decision.decision === "approval_required") {
+      this.events.record({
+        type: "tool.approval_required",
+        actorId: agent.id,
+        data: {
+          toolName,
+          decision: decision.decision,
+          reason: decision.reason,
+          action: decision.action,
+          resource: decision.resource,
+          policyRuleId: decision.policyRuleId
+        }
+      });
+
+      return {
+        ok: false,
+        output: decision.reason
+      };
+    }
 
     if (!decision.allowed) {
       this.events.record({
         type: "tool.denied",
         actorId: agent.id,
-        data: { toolName, reason: decision.reason }
+        data: {
+          toolName,
+          decision: decision.decision,
+          reason: decision.reason,
+          action: decision.action,
+          resource: decision.resource,
+          policyRuleId: decision.policyRuleId
+        }
       });
 
       return {
@@ -29,7 +56,13 @@ export class ToolBroker {
     this.events.record({
       type: "tool.allowed",
       actorId: agent.id,
-      data: { toolName }
+      data: {
+        toolName,
+        decision: decision.decision,
+        action: decision.action,
+        resource: decision.resource,
+        policyRuleId: decision.policyRuleId
+      }
     });
 
     const result = await this.registry.execute(toolName, input);

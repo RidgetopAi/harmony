@@ -13,6 +13,14 @@ export type AgentPermissions = {
   requiresApprovalFor: string[];
 };
 
+export type AgentResourceScope = {
+  type: "filesystem.path";
+  path: string;
+  access: "read" | "write" | "read_write";
+  businessId?: string;
+  sourceRootId?: string;
+};
+
 export type AgentDefinition = {
   id: string;
   name: string;
@@ -22,4 +30,5 @@ export type AgentDefinition = {
   allowedTools: string[];
   canTalkTo: string[];
   permissions: AgentPermissions;
+  resourceScopes?: AgentResourceScope[];
 };

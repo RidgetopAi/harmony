@@ -24,7 +24,13 @@ export class MessageBroker {
         type: "message.denied",
         actorId: fromAgent.id,
         targetId: toAgent.id,
-        data: { reason: decision.reason }
+        data: {
+          decision: decision.decision,
+          reason: decision.reason,
+          action: decision.action,
+          resource: decision.resource,
+          policyRuleId: decision.policyRuleId
+        }
       });
 
       return undefined;
@@ -42,7 +48,13 @@ export class MessageBroker {
       type: "message.allowed",
       actorId: fromAgent.id,
       targetId: toAgent.id,
-      data: { messageId: message.id }
+      data: {
+        messageId: message.id,
+        decision: decision.decision,
+        action: decision.action,
+        resource: decision.resource,
+        policyRuleId: decision.policyRuleId
+      }
     });
 
     const session = await this.harness.startAgentSession(toAgent);

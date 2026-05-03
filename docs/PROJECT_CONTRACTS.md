@@ -183,7 +183,7 @@ No answer should be treated as trustworthy unless it can cite provenance.
 
 ## Policy Decision Contract
 
-Policy should eventually return one of:
+Policy returns a typed `PolicyDecision` with a stable decision state:
 
 ```text
 allowed
@@ -191,10 +191,11 @@ denied
 approval_required
 ```
 
-Each decision should include:
+Each decision includes:
 
 ```text
 decision
+allowed
 reason
 agentId
 action
@@ -204,6 +205,69 @@ policyRuleId when available
 ```
 
 Do not collapse approval-required into denied. They mean different things.
+
+Tool policy actions include a capability namespace derived from the tool name. Current known namespaces include:
+
+```text
+filesystem.read
+filesystem.write
+shell.exec
+git.diff
+```
+
+Concrete tool names may be granted directly, or an agent may be granted a namespace. For example, a grant for `filesystem.read` can cover concrete read tools such as `filesystem.readFile`, but the relevant file-read permission gate must still pass.
+
+Tool policy actions also include a risk level:
+
+```text
+low
+medium
+high
+critical
+```
+
+Current defaults:
+
+```text
+shell.exec -> critical
+filesystem.write -> high
+filesystem.read -> medium
+git.diff -> low
+all other tools -> low
+```
+
+Policy denial events must carry enough metadata to explain what failed: decision state, reason, action, resource, and policy rule ID.
+
+Approval-required decisions are separate from denials. Current tool policy ordering is:
+
+```text
+allowlist or namespace grant
+permission gate
+approval requirement
+allowed
+```
+
+If a tool action needs approval, Harmony records `tool.approval_required` and does not execute the tool handler. Durable approval records and human review workflows belong to the Approval Workflow milestone.
+
+Filesystem tools also require resource scopes. A filesystem tool decision must include a path from tool input and must match an agent `filesystem.path` scope with compatible access:
+
+```text
+read -> read or read_write scope
+write -> write or read_write scope
+```
+
+Paths are normalized before scope checks so traversal such as `../` cannot escape an approved root. Missing paths fail with `resource.path_required`; out-of-scope paths fail with `resource.scope`.
+
+Per-business policy overrides are configuration records keyed by `businessId` and `agentId`. Current override fields are:
+
+```text
+allowedTools
+deniedTools
+requiresApprovalFor
+resourceScopes
+```
+
+Business override denials take precedence over base agent grants. Business override grants and approval requirements can match exact tool names, capability namespaces, or `*`. Business resource scopes are merged with the agent's base scopes only when the policy context includes the matching `businessId`.
 
 ## Approval Contract
 
