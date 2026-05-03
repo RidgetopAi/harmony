@@ -215,7 +215,11 @@ const agent = new Agent({
         actorId: spikeAgent.id,
         data: {
           toolName: toolCall.name,
-          reason: decision.reason
+          decision: decision.decision,
+          reason: decision.reason,
+          action: decision.action,
+          resource: decision.resource,
+          policyRuleId: decision.policyRuleId
         }
       });
 
@@ -229,7 +233,11 @@ const agent = new Agent({
       type: "tool.allowed",
       actorId: spikeAgent.id,
       data: {
-        toolName: toolCall.name
+        toolName: toolCall.name,
+        decision: decision.decision,
+        action: decision.action,
+        resource: decision.resource,
+        policyRuleId: decision.policyRuleId
       }
     });
 

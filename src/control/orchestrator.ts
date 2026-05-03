@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { AgentDefinition } from "../agents/agent-definition.js";
+import type { HarmonyEventIdentity } from "../events/event-types.js";
 import { EventLog } from "../events/event-log.js";
 import { MessageBroker } from "../messages/message-broker.js";
 import { validateAgentOutput } from "../runtime/agent-output-validator.js";
@@ -12,6 +13,11 @@ import type {
 } from "../runtime/runtime-harness.js";
 import { ToolBroker } from "../tools/tool-broker.js";
 import { TaskRouter } from "./task-router.js";
+
+type OrchestratorEventContext = Pick<
+  Partial<HarmonyEventIdentity>,
+  "taskId" | "sessionId" | "businessId" | "sourceId" | "sourceRootId" | "sourceScopeId" | "correlationId"
+>;
 
 export class Orchestrator {
   private readonly agentsById: Map<string, AgentDefinition>;
@@ -51,24 +57,38 @@ export class Orchestrator {
     this.events.record({
       type: "agent.session_started",
       actorId: agent.id,
-      data: { sessionId: session.id, harnessName: session.harnessName, state: session.state }
+      taskId: task.id,
+      sessionId: session.id,
+      data: {
+        sessionId: session.id,
+        harnessName: session.harnessName,
+        state: session.state,
+        taskId: task.id
+      }
     });
 
     const result = await this.harness.runTask(session, task);
-    await this.handleRunResult(agent, result, 0);
+    await this.handleRunResult(agent, result, 0, { taskId: task.id, sessionId: session.id });
   }
 
-  async handleRunResult(agent: AgentDefinition, result: RuntimeRunResult, depth: number): Promise<void> {
+  async handleRunResult(
+    agent: AgentDefinition,
+    result: RuntimeRunResult,
+    depth: number,
+    context: OrchestratorEventContext = {}
+  ): Promise<void> {
     if (result.status !== "completed") {
       this.events.record({
         type: "agent.run_failed",
         actorId: agent.id,
+        ...context,
         data: {
           sessionId: result.session.id,
           status: result.status,
           outputMode: result.outputMode,
           durationMs: result.durationMs,
-          error: result.error
+          error: result.error,
+          taskId: context.taskId
         }
       });
       return;
@@ -81,6 +101,7 @@ export class Orchestrator {
         this.events.record({
           type: "agent.action_invalid",
           actorId: agent.id,
+          ...context,
           data: {
             sessionId: result.session.id,
             status: "invalid",
@@ -89,7 +110,8 @@ export class Orchestrator {
             reason: validation.reason,
             outputMode: result.outputMode,
             durationMs: result.durationMs,
-            rawOutput: result.output.rawOutput ?? result.output
+            rawOutput: result.output.rawOutput ?? result.output,
+            taskId: context.taskId
           }
         });
       }
@@ -97,6 +119,7 @@ export class Orchestrator {
       this.events.record({
         type: "agent.run_failed",
         actorId: agent.id,
+        ...context,
         data: {
           sessionId: result.session.id,
           status: "failed",
@@ -107,24 +130,41 @@ export class Orchestrator {
             message: validation.reason,
             validationCode: validation.code
           },
-          rawOutput: result.output.rawOutput ?? result.output
+          rawOutput: result.output.rawOutput ?? result.output,
+          taskId: context.taskId
         }
       });
       return;
     }
 
-    await this.handleOutput(agent, validation.output, depth);
+    await this.handleOutput(
+      agent,
+      validation.output,
+      depth,
+      {
+        ...context,
+        sessionId: result.session.id
+      }
+    );
   }
 
-  private async handleOutput(agent: AgentDefinition, output: AgentOutput, depth: number): Promise<void> {
+  private async handleOutput(
+    agent: AgentDefinition,
+    output: AgentOutput,
+    depth: number,
+    context: OrchestratorEventContext
+  ): Promise<void> {
     this.events.record({
       type: "agent.output",
       actorId: agent.id,
+      ...context,
       data: {
         content: output.content,
         actions: output.actions,
         format: output.format,
-        rawOutput: output.rawOutput
+        rawOutput: output.rawOutput,
+        sessionId: context.sessionId,
+        taskId: context.taskId
       }
     });
 
@@ -133,13 +173,18 @@ export class Orchestrator {
     }
 
     for (const action of output.actions) {
-      await this.handleAction(agent, action, depth);
+      await this.handleAction(agent, action, depth, context);
     }
   }
 
-  private async handleAction(agent: AgentDefinition, action: AgentAction, depth: number): Promise<void> {
+  private async handleAction(
+    agent: AgentDefinition,
+    action: AgentAction,
+    depth: number,
+    context: OrchestratorEventContext
+  ): Promise<void> {
     if (action.type === "tool") {
-      await this.toolBroker.execute(agent, action.toolName, action.input);
+      await this.toolBroker.execute(agent, action.toolName, action.input, context);
       return;
     }
 
@@ -150,15 +195,19 @@ export class Orchestrator {
         type: "message.denied",
         actorId: agent.id,
         targetId: action.toAgentId,
+        ...context,
         data: { reason: `Unknown target agent: ${action.toAgentId}` }
       });
       return;
     }
 
-    const response = await this.messageBroker.send(agent, targetAgent, action.content);
+    const response = await this.messageBroker.send(agent, targetAgent, action.content, context);
 
     if (response) {
-      await this.handleRunResult(targetAgent, response, depth + 1);
+      await this.handleRunResult(targetAgent, response, depth + 1, {
+        ...context,
+        sessionId: response.session.id
+      });
     }
   }
 }

@@ -308,7 +308,7 @@ Progress notes:
 
 ## Milestone 5: Durable Event Log
 
-Status: next.
+Status: complete.
 
 Goal:
 
@@ -321,6 +321,19 @@ Tasks:
 - store task, agent, policy, message, tool, approval, and connector events
 - include business identity and source identity where applicable
 - add event query helpers
+
+Progress notes:
+
+- added typed payload contracts for task, agent, tool, policy, message, approval, and connector event families
+- added top-level event identity fields for business, source, source root/scope, task, session, and correlation IDs
+- added event query helpers for type, actor, target, business, source, task, session, time range, sort order, and limit
+- made event reads return defensive copies so callers cannot mutate stored audit history
+- chose JSONL as the first durable persistence layer through `JsonlEventStore`
+- added reload support so persisted events are queryable after creating a new `EventLog`
+- added `policy.decision_recorded` events before broker allowed, denied, and approval-required outcomes
+- wired task/session identity through orchestrator events
+- wired business/source identity through tool and message broker event contexts
+- added contract tests proving denied, approval-required, approval, connector, and persisted events remain queryable
 
 Done when:
 

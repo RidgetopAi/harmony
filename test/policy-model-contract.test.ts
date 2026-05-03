@@ -361,6 +361,75 @@ test("tool broker records approval_required without executing the tool handler",
   assert.equal(savedEvents.some((event) => event.type === "tool.completed"), false);
 });
 
+test("tool broker records policy decisions with business and source identity", async () => {
+  const events = new EventLog();
+  const policy = new PolicyEngine({
+    businessOverrides: [
+      {
+        businessId: "business-1",
+        agentId: "policy-test-agent",
+        resourceScopes: [
+          {
+            type: "filesystem.path",
+            path: "/business/docs",
+            access: "read",
+            businessId: "business-1",
+            sourceRootId: "source-root-1"
+          }
+        ]
+      }
+    ]
+  });
+  const registry = new ToolRegistry();
+  const broker = new ToolBroker(policy, registry, events);
+  const agent = makeAgent({
+    allowedTools: ["filesystem.read"],
+    permissions: { canReadFiles: true }
+  });
+
+  registry.register("filesystem.readFile", () => ({
+    ok: true,
+    output: "read ok"
+  }));
+
+  const result = await broker.execute(
+    agent,
+    "filesystem.readFile",
+    { path: "/business/docs/report.txt" },
+    {
+      businessId: "business-1",
+      sourceId: "source-1",
+      sourceRootId: "source-root-1",
+      taskId: "task-1",
+      sessionId: "session-1"
+    }
+  );
+
+  const policyEvent = events.list({ type: "policy.decision_recorded" })[0];
+  const completedEvent = events.list({ type: "tool.completed" })[0];
+
+  assert.equal(result.ok, true);
+  assert.ok(policyEvent);
+  assert.equal(policyEvent.businessId, "business-1");
+  assert.equal(policyEvent.sourceId, "source-1");
+  assert.equal(policyEvent.sourceRootId, "source-root-1");
+  assert.equal(policyEvent.taskId, "task-1");
+  assert.equal(policyEvent.sessionId, "session-1");
+  assert.equal(policyEvent.type, "policy.decision_recorded");
+  assert.equal(completedEvent.type, "tool.completed");
+
+  if (policyEvent.type !== "policy.decision_recorded" || completedEvent.type !== "tool.completed") {
+    throw new Error("Expected policy and completed tool events.");
+  }
+
+  assert.equal(policyEvent.data.decision, "allowed");
+  assert.equal(policyEvent.data.businessId, "business-1");
+  assert.equal(policyEvent.data.sourceId, "source-1");
+  assert.ok(completedEvent);
+  assert.equal(completedEvent.businessId, "business-1");
+  assert.equal(completedEvent.data.sourceRootId, "source-root-1");
+});
+
 function makeAgent(input: {
   allowedTools: string[];
   permissions?: Partial<AgentDefinition["permissions"]>;

@@ -138,6 +138,73 @@ Agent-to-agent communication is a permissioned action. It must go through `Messa
 
 Every allowed, denied, executed, failed, or approval-required action should produce an event.
 
+## Durable Event Log Contract
+
+`EventLog` is the audit surface for Harmony. It owns event IDs, timestamps, query behavior, defensive copies, and persistence through an `EventStore`.
+
+Current stores:
+
+```text
+MemoryEventStore
+JsonlEventStore
+```
+
+`JsonlEventStore` is the first durable persistence layer. It writes one event per line, reloads events at startup, and preserves timestamps as `Date` values when read back through `EventLog`. This keeps Milestone 5 append-only and dependency-free until a later API/database milestone needs stronger indexing or multi-process guarantees.
+
+Every event includes:
+
+```text
+id
+type
+at
+actorId when applicable
+targetId when applicable
+businessId when applicable
+sourceId when applicable
+sourceRootId when applicable
+sourceScopeId when applicable
+taskId when applicable
+sessionId when applicable
+correlationId when applicable
+data
+```
+
+Current event families:
+
+```text
+task.*
+agent.*
+tool.*
+policy.*
+message.*
+approval.*
+connector.*
+```
+
+Task events carry task identity. Agent events carry session/output or failure details. Tool, policy, and message policy events carry decision state, action, resource, reason, and policy rule ID when available. Approval and connector event payloads include business and source identity so future UI/API surfaces can answer what happened, when, by whom, and why.
+
+Tool and message brokers also record `policy.decision_recorded` before allowed, denied, or approval-required broker events. This keeps policy decisions queryable even when the downstream action does not execute.
+
+The event log supports audit queries by:
+
+```text
+type
+actorId
+targetId
+businessId
+sourceId
+sourceRootId
+sourceScopeId
+taskId
+sessionId
+correlationId
+time range
+sort order
+limit
+```
+
+Denied and approval-required events must remain queryable and must not be collapsed into generic failures. Event log reads return defensive copies so callers cannot mutate stored audit history.
+
 ## Data Contracts
 
 Every business data object should eventually include:
