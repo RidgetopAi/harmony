@@ -205,6 +205,47 @@ limit
 
 Denied and approval-required events must remain queryable and must not be collapsed into generic failures. Event log reads return defensive copies so callers cannot mutate stored audit history.
 
+## Business And Source Model Contract
+
+Milestone 6 owns the first typed data-boundary model in `src/domain/business-source-model.ts`.
+
+Core entities:
+
+```text
+Business
+BusinessAgentAssignment
+Source
+SourceRoot
+SourceScope
+Connector
+Document
+Communication
+DiscoveryJob
+Approval
+ProvenanceRecord
+AuditEventReference
+```
+
+Identity is explicit. Data-plane objects should use stable named IDs such as `businessId`, `sourceId`, `sourceRootId`, `sourceScopeId`, `documentId`, `communicationId`, `discoveryJobId`, `approvalId`, `provenanceId`, and `eventId`.
+
+Source access is not implied by configuring a source or connector. Access exists only through approved scoped records:
+
+```text
+SourceRoot for local filesystem roots
+SourceScope for folders, labels, mailboxes, channels, API scopes, or accounts
+```
+
+A `Document` or `Communication` must carry `businessId`, `sourceId`, exactly one of `sourceRootId` or `sourceScopeId`, and at least one matching `ProvenanceRecord`. The provenance record must point back to the same business, source, and source root or scope. This rule is enforced by the current contract helpers:
+
+```text
+defineDocument
+defineCommunication
+sourceAccessFor
+sourcesForBusiness
+```
+
+Do not let connector lifecycle state substitute for source authorization. A connector may be configured or connected while its roots/scopes are still pending review.
+
 ## Data Contracts
 
 Every business data object should eventually include:
@@ -212,8 +253,9 @@ Every business data object should eventually include:
 ```text
 businessId
 sourceId
-createdAt
-updatedAt
+sourceRootId or sourceScopeId when applicable
+createdAt or discoveredAt
+updatedAt when applicable
 provenance
 ```
 
@@ -247,6 +289,8 @@ provenance
 ```
 
 No answer should be treated as trustworthy unless it can cite provenance.
+
+Provenance chains are structural, not optional. If a workflow discovers a business object, it must also create the matching provenance write path in the same slice. Do not add tables, types, or agent outputs that produce documents, communications, facts, chunks, summaries, or answers without a corresponding provenance path and validation test.
 
 ## Policy Decision Contract
 

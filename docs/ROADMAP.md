@@ -343,6 +343,8 @@ Done when:
 
 ## Milestone 6: Business And Source Model
 
+Status: in progress.
+
 Goal:
 
 Create the foundation for Company Brain data boundaries.
@@ -367,6 +369,14 @@ Tasks:
 - document naming and IDs
 - reuse lessons from mock-business where useful
 - avoid deep indexing until discovery/approval is stable
+
+Progress notes:
+
+- created `src/domain/business-source-model.ts` for the first data-boundary contracts
+- defined Business, business agent assignment, Source, SourceRoot, SourceScope, Connector, Document, Communication, DiscoveryJob, Approval, ProvenanceRecord, and AuditEvent reference types
+- made source access explicit through approved SourceRoot or SourceScope records
+- added `defineDocument` and `defineCommunication` contract helpers requiring at least one matching provenance record
+- added contract tests for multi-source businesses, scoped access, document provenance, and communication provenance
 
 Done when:
 
