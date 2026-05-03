@@ -68,7 +68,7 @@ Use these terms in code, docs, and Mandrel.
 - `ToolCall` or tool action for a requested tool use.
 - `PolicyDecision` for allow/deny/approval-required results.
 - `RuntimeHarness` for the interface Harmony uses.
-- `PiMonoHarness` for the pi-mono adapter.
+- `PiCoreHarness` for the adapter around `@mariozechner/pi-agent-core`.
 
 IDs should be explicit:
 
@@ -256,7 +256,7 @@ The runtime harness should be responsible for:
 
 - starting agent sessions
 - sending tasks/messages to an agent runtime
-- returning structured output or raw output for parsing
+- returning structured output, with raw output attached only as supporting evidence
 - reporting errors, timeouts, and lifecycle state
 
 The runtime harness should not be responsible for:
@@ -265,6 +265,78 @@ The runtime harness should not be responsible for:
 - deciding business data access
 - bypassing tool brokers
 - storing final business knowledge
+
+Current runtime contract shape:
+
+```text
+RuntimeHarness
+  startAgentSession(agent) -> AgentSession
+  runTask(session, task, options?) -> RuntimeRunResult
+  receiveMessage(session, message, options?) -> RuntimeRunResult
+
+AgentSession
+  id
+  agentId
+  harnessName
+  state: starting | running | completed | failed | timed_out | stopped
+  startedAt
+  lastActiveAt
+  endedAt?
+
+RuntimeRunResult
+  status: completed | failed | timed_out
+  outputMode: batch | stream
+  durationMs
+  output? structured AgentOutput
+  error? RuntimeError
+
+AgentOutput
+  format: structured-intent
+  agentId
+  content
+  actions[]
+  rawOutput?
+```
+
+Important rule:
+
+```text
+Harness output is intent, not authority.
+```
+
+Even if a harness produces a tool action, Harmony must route that action through `ToolBroker` and policy before any tool handler runs. Contract tests should preserve this boundary for every harness implementation.
+
+For `PiCoreHarness`, pi-agent-core tools must be inert intent-capture tools unless they are explicitly brokered through Harmony. The adapter may use pi-agent-core to run the model/tool-call loop, but it must return Harmony `AgentAction` intent instead of performing privileged work itself.
+
+## Agent Protocol Contract
+
+Agent-facing output uses the `structured-intent` protocol.
+
+Model text must parse as JSON matching the agent protocol. Human-readable prose belongs in `content`; machine-readable requests belong in `actions`.
+
+Agent prompts must teach this boundary directly. A prompt may describe the agent's role, but it must also tell the agent to respond with `structured-intent`, put human-readable text in `content`, put requests in `actions`, and request authority instead of claiming direct execution.
+
+Current action forms:
+
+```text
+ToolAction
+  type: tool
+  toolName
+  input
+
+MessageAction
+  type: message
+  toAgentId
+  content
+```
+
+Important rule:
+
+```text
+Agent content is not authority. Agent actions are requests for authority.
+```
+
+Malformed output or malformed actions must fail closed before `ToolBroker` or `MessageBroker` can execute work. Malformed actions should record `agent.action_invalid` with the action index and issue code, followed by `agent.run_failed` with `invalid_output`.
 
 ## Source Of Truth Order
 
@@ -314,4 +386,3 @@ Before adding a new module, ask:
 6. What provenance should it preserve?
 
 If the answer is unclear, write the contract before writing code.
-

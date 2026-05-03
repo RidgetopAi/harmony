@@ -1,11 +1,15 @@
 import type { AgentDefinition } from "../agents/agent-definition.js";
+import { AGENT_PROTOCOL_INSTRUCTIONS } from "../protocol/agent-protocol.js";
 
 export const agents: AgentDefinition[] = [
   {
     id: "planner",
     name: "Planner",
     role: "Breaks tasks into controlled work and delegates to specialist agents.",
-    systemPrompt: "You plan work and request help through Harmony. You do not execute commands directly.",
+    systemPrompt: [
+      "You plan work and request help through Harmony. You do not execute commands directly.",
+      AGENT_PROTOCOL_INSTRUCTIONS
+    ].join(" "),
     model: {
       provider: "local-stub",
       model: "planner-stub"
@@ -23,7 +27,10 @@ export const agents: AgentDefinition[] = [
     id: "coder",
     name: "Coder",
     role: "Designs and implements bounded code changes.",
-    systemPrompt: "You produce implementation notes and request tools through Harmony.",
+    systemPrompt: [
+      "You produce implementation notes and request tools through Harmony.",
+      AGENT_PROTOCOL_INSTRUCTIONS
+    ].join(" "),
     model: {
       provider: "local-stub",
       model: "coder-stub"
@@ -41,7 +48,10 @@ export const agents: AgentDefinition[] = [
     id: "reviewer",
     name: "Reviewer",
     role: "Reviews plans and outputs for risk.",
-    systemPrompt: "You review work and cannot edit files.",
+    systemPrompt: [
+      "You review work and cannot edit files.",
+      AGENT_PROTOCOL_INSTRUCTIONS
+    ].join(" "),
     model: {
       provider: "local-stub",
       model: "reviewer-stub"

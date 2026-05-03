@@ -424,7 +424,7 @@ Use pi-agent-core or pi-coding-agent SDK directly, not the interactive CLI.
 Start with no built-in tools or read-only tools.
 Provide Harmony-wrapped tools.
 Keep LocalHarness as deterministic test harness.
-Implement PiMonoHarness only behind RuntimeHarness.
+Implement PiCoreHarness only behind RuntimeHarness.
 ```
 
 Practical sequence:
@@ -433,9 +433,7 @@ Practical sequence:
 2. Install dependencies and run `./pi-test.sh --help`.
 3. Run a no-tools JSON/print smoke test with a configured model.
 4. Build a small SDK spike outside Harmony core.
-5. Decide whether `PiMonoHarness` should use:
-   - `@mariozechner/pi-coding-agent` SDK, or
-   - `@mariozechner/pi-agent-core` direct.
+5. Use `PiCoreHarness` for the `@mariozechner/pi-agent-core` direct adapter.
 6. Implement only the adapter, leaving Harmony core unchanged.
 
 ## Published Package Update

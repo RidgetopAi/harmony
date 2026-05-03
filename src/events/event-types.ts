@@ -3,6 +3,8 @@ export type HarmonyEventType =
   | "task.routed"
   | "agent.session_started"
   | "agent.output"
+  | "agent.action_invalid"
+  | "agent.run_failed"
   | "tool.allowed"
   | "tool.denied"
   | "tool.completed"

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { AgentDefinition } from "../agents/agent-definition.js";
 import { PolicyEngine } from "../control/policy-engine.js";
 import { EventLog } from "../events/event-log.js";
-import type { RuntimeHarness, AgentOutput } from "../runtime/runtime-harness.js";
+import type { RuntimeHarness, RuntimeRunResult } from "../runtime/runtime-harness.js";
 import type { AgentMessage } from "./message.js";
 
 export class MessageBroker {
@@ -16,7 +16,7 @@ export class MessageBroker {
     fromAgent: AgentDefinition,
     toAgent: AgentDefinition,
     content: string
-  ): Promise<AgentOutput | undefined> {
+  ): Promise<RuntimeRunResult | undefined> {
     const decision = this.policy.canMessage(fromAgent, toAgent.id);
 
     if (!decision.allowed) {
@@ -46,15 +46,20 @@ export class MessageBroker {
     });
 
     const session = await this.harness.startAgentSession(toAgent);
-    const output = await this.harness.receiveMessage(session, message);
+    const result = await this.harness.receiveMessage(session, message);
 
     this.events.record({
       type: "message.delivered",
       actorId: fromAgent.id,
       targetId: toAgent.id,
-      data: { messageId: message.id, response: output.content }
+      data: {
+        messageId: message.id,
+        sessionId: session.id,
+        status: result.status,
+        response: result.status === "completed" ? result.output.content : result.error.message
+      }
     });
 
-    return output;
+    return result;
   }
 }

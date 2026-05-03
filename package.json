@@ -8,6 +8,7 @@
     "demo": "tsx src/index.ts",
     "dev": "tsx src/index.ts",
     "spike:pi-core": "tsx src/spikes/pi-agent-core-spike.ts",
+    "test": "tsc -p tsconfig.test.json --noEmit && node --import tsx --test test/**/*.test.ts",
     "start": "node dist/index.js",
     "type-check": "tsc -p tsconfig.json --noEmit"
   },

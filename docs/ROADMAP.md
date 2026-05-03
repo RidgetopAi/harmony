@@ -98,7 +98,7 @@ Current proof:
 - event log for allowed and denied actions
 - Decision 001: preferred runtime loop is `pi-agent-core`
 - `pi-agent-core` spike proving Harmony-owned policy before tool execution
-- placeholder `PiMonoHarness` remains until the spike is promoted into the harness contract
+- placeholder `PiCoreHarness` remains until the spike is promoted into the harness contract
 
 Important prior prototype:
 
@@ -148,7 +148,7 @@ Is pi-mono the agent runtime, the tool/process harness, or both?
 Done when:
 
 - `docs/PI_MONO_NOTES.md` explains pi-mono entrypoints and integration options
-- `PiMonoHarness` has a written adapter design before implementation
+- `PiCoreHarness` has a written adapter design before implementation
 - no Harmony core code depends directly on pi-mono internals
 
 Completion notes:
@@ -169,7 +169,7 @@ We did not make the stale local pi CLI checkout runnable because dependencies ar
 
 ## Milestone 2: Runtime Harness Contract
 
-Status: next.
+Status: complete.
 
 Goal:
 
@@ -187,11 +187,35 @@ Tasks:
 
 Done when:
 
-- `LocalHarness` and `PiMonoHarness` can satisfy the same interface shape
+- `LocalHarness` and `PiCoreHarness` can satisfy the same interface shape
 - tests prove a harness cannot bypass policy by directly executing tools
 - every harness output becomes structured agent intent before action
 
+Progress notes:
+
+- added explicit `AgentSession` lifecycle state and `harnessName`
+- wrapped harness execution in `RuntimeRunResult`
+- defined completed, failed, and timed-out runtime result states
+- defined batch versus stream output mode at the contract boundary
+- required completed output to be `format: structured-intent`
+- added contract tests proving LocalHarness output still goes through `ToolBroker` and policy before tool execution
+- renamed the placeholder adapter to `PiCoreHarness` to match Decision 001
+- added runtime validation that rejects malformed completed harness output as `invalid_output`
+- added concrete timeout behavior in `LocalHarness`
+- implemented `PiCoreHarness` behind the same `RuntimeHarness` contract using inert pi-agent-core intent tools
+- added shared contract tests proving both `LocalHarness` and `PiCoreHarness` cannot bypass Harmony policy
+- verified pi-agent-core tool calls become structured Harmony `AgentAction` intent before brokered action
+
+Completion notes:
+
+- `LocalHarness` remains the deterministic test harness.
+- `PiCoreHarness` runs `@mariozechner/pi-agent-core` without real model keys by using an injectable stream function and deterministic default fake stream.
+- `PiCoreHarness` does not expose raw privileged tools. Its pi tools are inert and only let the pi loop complete while Harmony captures requested tool calls as intent.
+- Real tool execution remains outside the harness and still flows through `ToolBroker`.
+
 ## Milestone 3: Agent Protocol
+
+Status: complete.
 
 Goal:
 
@@ -221,7 +245,21 @@ Done when:
 - invalid action payloads are denied and logged
 - prompts clearly teach agents to request authority rather than assume it
 
+Progress notes:
+
+- extracted `AgentAction` and `AgentOutput` into a protocol module
+- added machine-readable protocol schema constants for output, tool actions, and message actions
+- added parsing for structured model objects and JSON model text
+- explicitly rejected free-form model text at the protocol boundary
+- added protocol issue codes for malformed output and malformed actions
+- added `agent.action_invalid` audit events before broker execution
+- added contract tests proving malformed actions cannot trigger tools or messages
+- added shared authority-request protocol instructions to configured agent prompts
+- added tests proving configured agents carry the protocol guidance
+
 ## Milestone 4: Policy Model
+
+Status: next.
 
 Goal:
 
@@ -415,4 +453,4 @@ Next recommended work block:
 2. Write `docs/PI_MONO_NOTES.md`.
 3. Refine `RuntimeHarness` based on what pi-mono actually supports.
 4. Add a minimal test harness around the control boundary.
-5. Only then implement the first `PiMonoHarness` adapter.
+5. Only then implement the first `PiCoreHarness` adapter.

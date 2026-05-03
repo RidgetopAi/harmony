@@ -2,7 +2,14 @@ import { randomUUID } from "node:crypto";
 import type { AgentDefinition } from "../agents/agent-definition.js";
 import { EventLog } from "../events/event-log.js";
 import { MessageBroker } from "../messages/message-broker.js";
-import type { AgentAction, AgentOutput, RuntimeHarness, Task } from "../runtime/runtime-harness.js";
+import { validateAgentOutput } from "../runtime/agent-output-validator.js";
+import type {
+  AgentAction,
+  AgentOutput,
+  RuntimeHarness,
+  RuntimeRunResult,
+  Task
+} from "../runtime/runtime-harness.js";
 import { ToolBroker } from "../tools/tool-broker.js";
 import { TaskRouter } from "./task-router.js";
 
@@ -44,18 +51,81 @@ export class Orchestrator {
     this.events.record({
       type: "agent.session_started",
       actorId: agent.id,
-      data: { sessionId: session.id }
+      data: { sessionId: session.id, harnessName: session.harnessName, state: session.state }
     });
 
-    const output = await this.harness.runTask(session, task);
-    await this.handleOutput(agent, output, 0);
+    const result = await this.harness.runTask(session, task);
+    await this.handleRunResult(agent, result, 0);
+  }
+
+  async handleRunResult(agent: AgentDefinition, result: RuntimeRunResult, depth: number): Promise<void> {
+    if (result.status !== "completed") {
+      this.events.record({
+        type: "agent.run_failed",
+        actorId: agent.id,
+        data: {
+          sessionId: result.session.id,
+          status: result.status,
+          outputMode: result.outputMode,
+          durationMs: result.durationMs,
+          error: result.error
+        }
+      });
+      return;
+    }
+
+    const validation = validateAgentOutput(result.output);
+
+    if (!validation.ok) {
+      if (validation.code === "invalid_action") {
+        this.events.record({
+          type: "agent.action_invalid",
+          actorId: agent.id,
+          data: {
+            sessionId: result.session.id,
+            status: "invalid",
+            actionIndex: validation.actionIndex,
+            actionIssue: validation.actionIssue,
+            reason: validation.reason,
+            outputMode: result.outputMode,
+            durationMs: result.durationMs,
+            rawOutput: result.output.rawOutput ?? result.output
+          }
+        });
+      }
+
+      this.events.record({
+        type: "agent.run_failed",
+        actorId: agent.id,
+        data: {
+          sessionId: result.session.id,
+          status: "failed",
+          outputMode: result.outputMode,
+          durationMs: result.durationMs,
+          error: {
+            code: "invalid_output",
+            message: validation.reason,
+            validationCode: validation.code
+          },
+          rawOutput: result.output.rawOutput ?? result.output
+        }
+      });
+      return;
+    }
+
+    await this.handleOutput(agent, validation.output, depth);
   }
 
   private async handleOutput(agent: AgentDefinition, output: AgentOutput, depth: number): Promise<void> {
     this.events.record({
       type: "agent.output",
       actorId: agent.id,
-      data: { content: output.content, actions: output.actions }
+      data: {
+        content: output.content,
+        actions: output.actions,
+        format: output.format,
+        rawOutput: output.rawOutput
+      }
     });
 
     if (depth > 2) {
@@ -88,7 +158,7 @@ export class Orchestrator {
     const response = await this.messageBroker.send(agent, targetAgent, action.content);
 
     if (response) {
-      await this.handleOutput(targetAgent, response, depth + 1);
+      await this.handleRunResult(targetAgent, response, depth + 1);
     }
   }
 }
