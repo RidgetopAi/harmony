@@ -413,6 +413,10 @@ Progress notes:
 - added contract tests for discovery task routing, approved-root scanning, out-of-scope denial, event identity, metadata, provenance, and broken-entry resilience
 - inspected desktop `mock-local-business-corpus` over Tailscale and ported discovery-only scanner ideas: noisy-directory skips, deterministic file IDs, SHA-256 hashes, usefulness scores, classifications, duplicate groups, folder rollups, file-type breakdowns, and source-area breakdowns
 - validated Harmony scanner against a temporary local copy of the Green Ridge corpus: 319 files, 68 folders, 536824 bytes, 2 duplicate groups, 4 duplicate files, 75 recommended, 83 review, 158 archive, 2 duplicate, 1 skip, 0 errors
+- added an in-memory discovery repository contract for scan outputs keyed by `discoveryJobId`
+- wired `discovery.scanRoot` to optionally record scan outputs when the tool registry receives a discovery repository
+- added repository query helpers for business, source, source root, discovery job, document, approval status, classification, and folder path
+- documented the repository as in-memory approval-target state, separate from audit events and before durable persistence
 
 Done when:
 

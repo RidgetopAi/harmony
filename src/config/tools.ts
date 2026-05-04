@@ -1,7 +1,12 @@
-import { discoveryScanRootTool } from "../discovery/file-discovery.js";
+import type { DiscoveryRepository } from "../discovery/discovery-repository.js";
+import { createDiscoveryScanRootTool } from "../discovery/file-discovery.js";
 import { ToolRegistry } from "../tools/tool-registry.js";
 
-export function createToolRegistry(): ToolRegistry {
+export type ToolRegistryOptions = {
+  discoveryRepository?: DiscoveryRepository;
+};
+
+export function createToolRegistry(options: ToolRegistryOptions = {}): ToolRegistry {
   const registry = new ToolRegistry();
 
   registry.register("task.plan.create", (input) => ({
@@ -28,7 +33,7 @@ export function createToolRegistry(): ToolRegistry {
     }
   }));
 
-  registry.register("discovery.scanRoot", discoveryScanRootTool);
+  registry.register("discovery.scanRoot", createDiscoveryScanRootTool(options.discoveryRepository));
 
   registry.register("shell.exec", (input) => ({
     ok: true,

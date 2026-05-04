@@ -5,10 +5,12 @@ import {
   defineDocument,
   type ApprovalStatus,
   type BusinessDocument,
+  type DiscoveryJob,
   type DiscoveryStatus,
   type ProvenanceRecord
 } from "../domain/business-source-model.js";
-import type { ToolResult } from "../tools/tool-registry.js";
+import type { DiscoveryRepository, DiscoveryScanRecord } from "./discovery-repository.js";
+import type { ToolHandler, ToolResult } from "../tools/tool-registry.js";
 
 export type DiscoveryScanRootInput = {
   path: string;
@@ -31,6 +33,8 @@ export type DiscoveryScanSummary = {
   businessId: string;
   sourceId: string;
   sourceRootId: string;
+  discoveryJobId?: string;
+  requestedByAgentId?: string;
   rootPath: string;
   scannedAt: Date;
   filesDiscovered: number;
@@ -106,6 +110,10 @@ export type DiscoveryScanRootOutput = {
   errors: DiscoveryEntryError[];
 };
 
+export type DiscoveryScanOptions = {
+  repository?: DiscoveryRepository;
+};
+
 type ScanState = {
   input: Required<Pick<DiscoveryScanRootInput, "businessId" | "sourceId" | "sourceRootId">> &
     Pick<DiscoveryScanRootInput, "discoveryJobId" | "requestedByAgentId">;
@@ -165,29 +173,38 @@ const SOURCE_AREA_LABELS: Array<[string, string]> = [
 ];
 
 export async function discoveryScanRootTool(input: unknown): Promise<ToolResult> {
-  const parsed = parseDiscoveryScanRootInput(input);
-
-  if (!parsed.ok) {
-    return {
-      ok: false,
-      output: parsed.reason
-    };
-  }
-
-  try {
-    return {
-      ok: true,
-      output: await scanSourceRoot(parsed.input)
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      output: errorMessage(error)
-    };
-  }
+  return createDiscoveryScanRootTool()(input);
 }
 
-export async function scanSourceRoot(input: DiscoveryScanRootInput): Promise<DiscoveryScanRootOutput> {
+export function createDiscoveryScanRootTool(repository?: DiscoveryRepository): ToolHandler {
+  return async (input: unknown): Promise<ToolResult> => {
+    const parsed = parseDiscoveryScanRootInput(input);
+
+    if (!parsed.ok) {
+      return {
+        ok: false,
+        output: parsed.reason
+      };
+    }
+
+    try {
+      return {
+        ok: true,
+        output: await scanSourceRoot(parsed.input, { repository })
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        output: errorMessage(error)
+      };
+    }
+  };
+}
+
+export async function scanSourceRoot(
+  input: DiscoveryScanRootInput,
+  options: DiscoveryScanOptions = {}
+): Promise<DiscoveryScanRootOutput> {
   const rootPath = path.resolve(input.path);
   const state: ScanState = {
     input: {
@@ -217,11 +234,13 @@ export async function scanSourceRoot(input: DiscoveryScanRootInput): Promise<Dis
   const fileTypeBreakdown = countByExtension(state.fileRecords);
   const sourceAreaBreakdown = countBySourceArea(state.fileRecords);
 
-  return {
+  const output = {
     summary: {
       businessId: input.businessId,
       sourceId: input.sourceId,
       sourceRootId: input.sourceRootId,
+      discoveryJobId: input.discoveryJobId,
+      requestedByAgentId: input.requestedByAgentId,
       rootPath,
       scannedAt: state.scannedAt,
       filesDiscovered: state.documents.length,
@@ -241,6 +260,37 @@ export async function scanSourceRoot(input: DiscoveryScanRootInput): Promise<Dis
     duplicateGroups,
     folderRollups,
     errors: state.errors
+  };
+
+  if (options.repository && input.discoveryJobId) {
+    options.repository.recordScan(createDiscoveryScanRecord(input, output));
+  }
+
+  return output;
+}
+
+export function createDiscoveryScanRecord(
+  input: DiscoveryScanRootInput,
+  output: DiscoveryScanRootOutput
+): DiscoveryScanRecord {
+  if (!input.discoveryJobId) {
+    throw new Error("Discovery repository recording requires discoveryJobId.");
+  }
+
+  const discoveryJob: DiscoveryJob = {
+    discoveryJobId: input.discoveryJobId,
+    businessId: input.businessId,
+    sourceId: input.sourceId,
+    sourceRootId: input.sourceRootId,
+    requestedByAgentId: input.requestedByAgentId,
+    status: "completed",
+    startedAt: output.summary.scannedAt,
+    completedAt: output.summary.scannedAt
+  };
+
+  return {
+    discoveryJob,
+    output
   };
 }
 

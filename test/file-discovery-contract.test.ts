@@ -11,6 +11,7 @@ import { TaskRouter } from "../src/control/task-router.js";
 import type { BusinessDocument } from "../src/domain/business-source-model.js";
 import { EventLog } from "../src/events/event-log.js";
 import type { ToolEventPayload } from "../src/events/event-types.js";
+import { InMemoryDiscoveryRepository, type DiscoveryRepository } from "../src/discovery/discovery-repository.js";
 import type { DiscoveryScanRootOutput } from "../src/discovery/file-discovery.js";
 import { ToolBroker } from "../src/tools/tool-broker.js";
 
@@ -40,7 +41,8 @@ test("discovery.scanRoot scans approved roots through policy broker and records 
     writeFileSync(path.join(directory, "node_modules", "noise.txt"), "noise");
     symlinkSync(path.join(directory, "missing.txt"), path.join(directory, "broken-link.txt"));
 
-    const { result, events } = await executeDiscovery(directory);
+    const repository = new InMemoryDiscoveryRepository();
+    const { result, events } = await executeDiscovery(directory, directory, repository);
     const output = result.output as DiscoveryScanRootOutput;
     const secondScan = (await executeDiscovery(directory)).result.output as DiscoveryScanRootOutput;
     const policyEvent = events.list({ type: "policy.decision_recorded" })[0];
@@ -81,6 +83,8 @@ test("discovery.scanRoot scans approved roots through policy broker and records 
     assert.equal(output.folderRollups.length, 2);
     assert.equal(output.errors.length, 1);
     assert.ok(output.errors[0].path.endsWith("broken-link.txt"));
+    assert.equal(repository.listDiscoveryJobs({ discoveryJobId: "discovery-job-1" }).length, 1);
+    assert.equal(repository.listDocuments({ discoveryJobId: "discovery-job-1" }).length, 3);
 
     const documentNames = output.documents.map((document) => document.name).sort();
     const invoiceRecord = output.fileRecords.find((record) => record.name === "invoice.txt");
@@ -145,7 +149,11 @@ test("discovery.scanRoot is denied outside approved source roots", async () => {
   }
 });
 
-async function executeDiscovery(scanPath: string, scopePath = scanPath): Promise<{
+async function executeDiscovery(
+  scanPath: string,
+  scopePath = scanPath,
+  repository?: DiscoveryRepository
+): Promise<{
   result: Awaited<ReturnType<ToolBroker["execute"]>>;
   events: EventLog;
 }> {
@@ -156,7 +164,7 @@ async function executeDiscovery(scanPath: string, scopePath = scanPath): Promise
   }
 
   const events = new EventLog();
-  const registry = createToolRegistry();
+  const registry = createToolRegistry({ discoveryRepository: repository });
   const policy = new PolicyEngine({
     businessOverrides: [
       {

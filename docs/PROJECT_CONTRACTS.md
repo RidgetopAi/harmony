@@ -486,6 +486,49 @@ These classifications are review hints only. They do not approve indexing and do
 
 One unreadable or broken entry must not fail the whole scan. The tool should return discovered documents plus per-entry errors and scan summary counts. Root-level policy denial still fails closed before the tool handler runs.
 
+## Discovery Repository Contract
+
+Milestone 7 keeps discovery repository state in memory only.
+
+Current implementation:
+
+```text
+InMemoryDiscoveryRepository
+```
+
+The discovery repository is product state for review workflows, not the audit log. Events prove what happened. The repository holds the latest discovered targets that later approval workflows can query.
+
+A repository scan record contains:
+
+```text
+discoveryJob
+output.summary
+output.documents
+output.fileRecords
+output.duplicateGroups
+output.folderRollups
+output.errors
+```
+
+Repository writes are keyed by `discoveryJobId`. Recording the same `discoveryJobId` again replaces the previous scan output for that job. This prevents repeated scans from accumulating stale documents, file records, duplicate groups, folder rollups, or errors under one logical discovery job.
+
+Reads must return defensive copies. Callers may inspect and prepare approval targets, but they must not be able to mutate repository state by changing returned objects.
+
+Query helpers must support approval-target lookup by:
+
+```text
+businessId
+sourceId
+sourceRootId
+discoveryJobId
+documentId
+approvalStatus
+classification
+folderPath
+```
+
+`discovery.scanRoot` may record into a repository only when the tool registry is explicitly created with one. The default registry remains stateless. This keeps M7 clear of broad app state, JSONL/database persistence, UI review state, and deep indexing.
+
 ## Runtime Harness Contract
 
 Harmony talks to harnesses through `RuntimeHarness`.
