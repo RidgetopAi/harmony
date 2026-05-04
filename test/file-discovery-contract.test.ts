@@ -33,12 +33,16 @@ test("discovery.scanRoot scans approved roots through policy broker and records 
 
   try {
     await mkdir(path.join(directory, "ops"));
+    await mkdir(path.join(directory, "node_modules"));
     writeFileSync(path.join(directory, "invoice.txt"), "invoice");
     writeFileSync(path.join(directory, "ops", "notes.md"), "# Notes");
+    writeFileSync(path.join(directory, "ops", "invoice copy.txt"), "invoice");
+    writeFileSync(path.join(directory, "node_modules", "noise.txt"), "noise");
     symlinkSync(path.join(directory, "missing.txt"), path.join(directory, "broken-link.txt"));
 
     const { result, events } = await executeDiscovery(directory);
     const output = result.output as DiscoveryScanRootOutput;
+    const secondScan = (await executeDiscovery(directory)).result.output as DiscoveryScanRootOutput;
     const policyEvent = events.list({ type: "policy.decision_recorded" })[0];
     const completedEvent = events.list({ type: "tool.completed" })[0];
 
@@ -55,16 +59,52 @@ test("discovery.scanRoot scans approved roots through policy broker and records 
     assert.equal(output.summary.businessId, "business-1");
     assert.equal(output.summary.sourceId, "source-1");
     assert.equal(output.summary.sourceRootId, "source-root-1");
-    assert.equal(output.summary.filesDiscovered, 2);
+    assert.equal(output.summary.filesDiscovered, 3);
     assert.equal(output.summary.directoriesVisited, 2);
+    assert.equal(output.summary.skippedEntries, 1);
     assert.equal(output.summary.errors, 1);
-    assert.equal(output.documents.length, 2);
+    assert.equal(output.summary.duplicateGroups, 1);
+    assert.equal(output.summary.duplicateFiles, 2);
+    assert.deepEqual(output.summary.fileTypeBreakdown, {
+      ".md": 1,
+      ".txt": 2
+    });
+    assert.deepEqual(output.summary.sourceAreaBreakdown, {
+      Other: 3
+    });
+    assert.equal(output.summary.classificationBreakdown.recommended, 1);
+    assert.equal(output.summary.classificationBreakdown.review, 1);
+    assert.equal(output.summary.classificationBreakdown.duplicate, 1);
+    assert.equal(output.documents.length, 3);
+    assert.equal(output.fileRecords.length, 3);
+    assert.equal(output.duplicateGroups.length, 1);
+    assert.equal(output.folderRollups.length, 2);
     assert.equal(output.errors.length, 1);
     assert.ok(output.errors[0].path.endsWith("broken-link.txt"));
 
     const documentNames = output.documents.map((document) => document.name).sort();
+    const invoiceRecord = output.fileRecords.find((record) => record.name === "invoice.txt");
+    const invoiceCopyRecord = output.fileRecords.find((record) => record.name === "invoice copy.txt");
+    const secondInvoiceRecord = secondScan.fileRecords.find((record) => record.name === "invoice.txt");
+    const rootRollup = output.folderRollups.find((folder) => folder.path === "");
+    const opsRollup = output.folderRollups.find((folder) => folder.path === "ops");
 
-    assert.deepEqual(documentNames, ["invoice.txt", "notes.md"]);
+    assert.deepEqual(documentNames, ["invoice copy.txt", "invoice.txt", "notes.md"]);
+    assert.ok(invoiceRecord);
+    assert.ok(invoiceCopyRecord);
+    assert.ok(secondInvoiceRecord);
+    assert.equal(invoiceRecord.documentId, secondInvoiceRecord.documentId);
+    assert.equal(invoiceRecord.classification, "recommended");
+    assert.equal(invoiceRecord.usefulnessScore, 85);
+    assert.match(invoiceRecord.contentHash ?? "", /^[0-9a-f]{64}$/);
+    assert.equal(invoiceCopyRecord.classification, "duplicate");
+    assert.ok(invoiceCopyRecord.classificationReasons.includes("duplicate_content_hash"));
+    assert.equal(output.duplicateGroups[0].canonicalDocumentId, invoiceRecord.documentId);
+    assert.ok(rootRollup);
+    assert.ok(opsRollup);
+    assert.equal(rootRollup.suggestedAction, "include");
+    assert.equal(opsRollup.totalFiles, 2);
+    assert.equal(opsRollup.duplicateCount, 1);
 
     for (const document of output.documents) {
       assertDocumentProvenance(document);

@@ -460,6 +460,30 @@ approvalStatus: pending
 provenance
 ```
 
+Discovery also returns scanner-specific metadata outside the `Document` contract:
+
+```text
+fileRecords
+duplicateGroups
+folderRollups
+summary.classificationBreakdown
+summary.fileTypeBreakdown
+summary.sourceAreaBreakdown
+```
+
+File records use deterministic document IDs based on `sourceRootId` and relative path. This keeps repeat discovery scans stable without making file metadata the source of authority.
+
+Current lightweight scanner behavior, aligned with `mock-local-business-corpus`:
+
+- skip noisy directories such as `.git`, `node_modules`, `cache`, `tmp`, `temp`, `__pycache__`, `.next`, `dist`, and `build`
+- compute SHA-256 hashes for files at or below `hashMaxBytes`
+- score files from supported extensions, useful path/name keywords, noisy path/name keywords, zero-byte files, and hash availability
+- classify files as `recommended`, `review`, `archive`, `skip`, or `duplicate`
+- group exact duplicates by content hash
+- roll folders up with `include`, `review`, or `exclude` suggestions
+
+These classifications are review hints only. They do not approve indexing and do not override source scope policy.
+
 One unreadable or broken entry must not fail the whole scan. The tool should return discovered documents plus per-entry errors and scan summary counts. Root-level policy denial still fails closed before the tool handler runs.
 
 ## Runtime Harness Contract

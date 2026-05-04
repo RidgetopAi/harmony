@@ -411,6 +411,8 @@ Progress notes:
 - scan output returns `Document` records with M6 provenance and pending approval status
 - scan output includes summary counts and per-entry errors so one broken or unreadable entry does not fail the whole scan
 - added contract tests for discovery task routing, approved-root scanning, out-of-scope denial, event identity, metadata, provenance, and broken-entry resilience
+- inspected desktop `mock-local-business-corpus` over Tailscale and ported discovery-only scanner ideas: noisy-directory skips, deterministic file IDs, SHA-256 hashes, usefulness scores, classifications, duplicate groups, folder rollups, file-type breakdowns, and source-area breakdowns
+- validated Harmony scanner against a temporary local copy of the Green Ridge corpus: 319 files, 68 folders, 536824 bytes, 2 duplicate groups, 4 duplicate files, 75 recommended, 83 review, 158 archive, 2 duplicate, 1 skip, 0 errors
 
 Done when:
 
