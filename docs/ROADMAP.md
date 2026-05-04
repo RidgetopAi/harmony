@@ -386,7 +386,7 @@ Done when:
 
 ## Milestone 7: File Discovery Agent Integration
 
-Status: in progress.
+Status: complete.
 
 Goal:
 
@@ -425,7 +425,14 @@ Done when:
 - scan results include metadata and provenance
 - one bad/unreadable file cannot fail the whole scan
 
+Completion notes:
+
+- M7 is complete as of commit `881b66f`.
+- The repository-backed discovery output gives M8 real approval targets without adding durable discovery persistence, UI state, deep parsing, indexing, or answers.
+
 ## Milestone 8: Approval Workflow
+
+Status: in progress.
 
 Goal:
 
@@ -438,6 +445,11 @@ Tasks:
 - connect approvals to discovered files, folders, sources, and tool actions
 - require approval before deep parsing/indexing
 - require approval before risky tool actions
+
+Progress notes:
+
+- M8 opened after M7 completed with repository-backed discovered documents, file records, duplicate groups, folder rollups, and scan errors available as approval targets.
+- The first M8 slice should stay contract-first: approval records, transition helpers, repository or store boundary, audit events, and tests before UI or indexing.
 
 Done when:
 
